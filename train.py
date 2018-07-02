@@ -15,16 +15,21 @@ visualizer = Visualizer(opt)
 
 total_steps = 0
 
+#!!! Control save_images and epoch number after continue training
+train_start_time = time.time()
 for epoch in range(1, opt.niter + opt.niter_decay + 1):
     epoch_start_time = time.time()
+   	prev_total_steps = total_steps
     for i, data in enumerate(dataset):
         iter_start_time = time.time()
         total_steps += opt.batchSize
-        epoch_iter = total_steps - dataset_size * (epoch - 1)
+        epoch_iter = total_steps - prev_total_steps
+
         model.set_input(data)
         model.optimize_parameters()
 
         if total_steps % opt.display_freq == 0:
+		    # turned off due to opt.display_id==0
             visualizer.display_current_results(model.get_current_visuals(), epoch)
 
         if total_steps % opt.print_freq == 0:
@@ -34,10 +39,10 @@ for epoch in range(1, opt.niter + opt.niter_decay + 1):
             if opt.display_id > 0:
                 visualizer.plot_current_errors(epoch, float(epoch_iter)/dataset_size, opt, errors)
 
-        if total_steps % opt.save_latest_freq == 0:
-            print('saving the latest model (epoch %d, total_steps %d)' %
-                  (epoch, total_steps))
-            model.save('latest')
+#        if total_steps % opt.save_latest_freq == 0:
+#            print('saving the latest model (epoch %d, total_steps %d)' %
+#                  (epoch, total_steps))
+#            model.save('latest')
 
     if epoch % opt.save_epoch_freq == 0:
         print('saving the model at the end of epoch %d, iters %d' %
@@ -50,3 +55,5 @@ for epoch in range(1, opt.niter + opt.niter_decay + 1):
 
     if epoch > opt.niter:
         model.update_learning_rate()
+
+print('End of training. Time Taken: %d sec' % (time.time() - train_start_time))
