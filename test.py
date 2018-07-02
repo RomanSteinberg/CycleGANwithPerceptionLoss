@@ -18,7 +18,7 @@ def main():
         range_str = list(map(int, str(opt.which_epoch).split(',')))
         first_epoch, last_epoch = range_str[:2]
         step = range_str[2] if len(range_str) == 3 else 1
-        res_dir = opt.results_dir
+        res_dir = os.path.join(opt.checkpoints_dir, opt.name, 'test') if opt.results_dir is None else opt.results_dir
         for epoch in range(first_epoch, last_epoch, step):
             opt.which_epoch = epoch
             opt.results_dir = os.path.join(res_dir, 'epoch_%d' % epoch)
@@ -32,8 +32,9 @@ def test(opt):
     dataset = data_loader.load_data()
     model = create_model(opt)
     visualizer = Visualizer(opt)
-    # create website
-    web_dir = os.path.join(opt.results_dir, opt.name, '%s_%s' % (opt.phase, opt.which_epoch))
+    # create webpage
+    web_dir = os.path.join(opt.checkpoints_dir, opt.name, '%s_%s' % (opt.phase, opt.which_epoch)) \
+        if opt.results_dir is None else opt.results_dir
     webpage = html.HTML(web_dir, 'Experiment = %s, Phase = %s, Epoch = %s' % (opt.name, opt.phase, opt.which_epoch))
     # test
     for i, data in enumerate(dataset):
