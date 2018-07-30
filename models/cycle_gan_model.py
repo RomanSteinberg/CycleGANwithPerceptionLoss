@@ -1,6 +1,4 @@
-import numpy as np
 import torch
-import os
 from collections import OrderedDict
 from torch.autograd import Variable
 import itertools
@@ -8,11 +6,22 @@ import util.util as util
 from util.image_pool import ImagePool
 from .base_model import BaseModel
 from . import networks
-import sys
 
 
 def mse_loss(input, target):
     return torch.sum((input - target)**2) / input.data.nelement()
+
+
+def color_loss(source, result):
+    img_shape = source.shape
+    top = int(img_shape[2] * 0.85)
+    left = int(img_shape[3] * 0.3)
+    height = int(img_shape[2] * 0.15)
+    width = int(img_shape[3] * 0.4)
+    crop_a = source[:, :, top:top+height, left:left+width]
+    crop_b = result[:, :, top:top+height, left:left+width]
+    return mse_loss(crop_a, crop_b)
+
 
 class CycleGANModel(BaseModel):
     def name(self):
@@ -63,6 +72,7 @@ class CycleGANModel(BaseModel):
             self.criterionCycle = torch.nn.L1Loss()
             self.criterionIdt = torch.nn.L1Loss()
             self.criterionFeat = mse_loss
+            self.criterionColor = color_loss
             # initialize optimizers
             self.optimizer_G = torch.optim.Adam(itertools.chain(self.netG_A.parameters(), self.netG_B.parameters()),
                                                 lr=opt.lr, betas=(opt.beta1, 0.999))
@@ -131,7 +141,9 @@ class CycleGANModel(BaseModel):
         lambda_A = self.opt.lambda_A
         lambda_B = self.opt.lambda_B
 
-        lambda_feat_AfB = self.opt.lambda_feat_AfB    
+        lambda_feat_color = self.opt.lambda_feat_color
+
+        lambda_feat_AfB = self.opt.lambda_feat_AfB
         lambda_feat_BfA = self.opt.lambda_feat_BfA
 
         lambda_feat_fArecB = self.opt.lambda_feat_fArecB
@@ -184,20 +196,23 @@ class CycleGANModel(BaseModel):
         # print ('self.netFeat(self.fake_B).parameters()', self.netFeat(self.fake_B).parameters())
         # print ('self.criterionFeat(self.netFeat(self.real_A), self.netFeat(self.fake_B)).parameters()', self.criterionFeat(self.netFeat(self.real_A), self.netFeat(self.fake_B)).parameters())
 
-
-        self.feat_loss_AfB = self.criterionFeat(self.netFeat(self.real_A), self.netFeat(self.fake_B)) * lambda_feat_AfB    
+        self.feat_loss_AfB = self.criterionFeat(self.netFeat(self.real_A), self.netFeat(self.fake_B)) * lambda_feat_AfB
         self.feat_loss_BfA = self.criterionFeat(self.netFeat(self.real_B), self.netFeat(self.fake_A)) * lambda_feat_BfA
 
         self.feat_loss_fArecB = self.criterionFeat(self.netFeat(self.fake_A), self.netFeat(self.rec_B)) * lambda_feat_fArecB
         self.feat_loss_fBrecA = self.criterionFeat(self.netFeat(self.fake_B), self.netFeat(self.rec_A)) * lambda_feat_fBrecA
 
-        self.feat_loss_ArecA = self.criterionFeat(self.netFeat(self.real_A), self.netFeat(self.rec_A)) * lambda_feat_ArecA 
-        self.feat_loss_BrecB = self.criterionFeat(self.netFeat(self.real_B), self.netFeat(self.rec_B)) * lambda_feat_BrecB 
+        self.feat_loss_ArecA = self.criterionFeat(self.netFeat(self.real_A), self.netFeat(self.rec_A)) * lambda_feat_ArecA
+        self.feat_loss_BrecB = self.criterionFeat(self.netFeat(self.real_B), self.netFeat(self.rec_B)) * lambda_feat_BrecB
 
-        self.feat_loss = self.feat_loss_AfB + self.feat_loss_BfA + self.feat_loss_fArecB + self.feat_loss_fBrecA + self.feat_loss_ArecA + self.feat_loss_BrecB
+        self.loss_color = self.criterionColor(self.real_A, self.fake_B) * lambda_feat_color
+
+        self.feat_loss = self.feat_loss_AfB + self.feat_loss_BfA + self.feat_loss_fArecB + self.feat_loss_fBrecA + \
+                         self.feat_loss_ArecA + self.feat_loss_BrecB + self.loss_color
 
         # combined loss
-        self.loss_G = self.loss_G_A + self.loss_G_B + self.loss_cycle_A + self.loss_cycle_B + self.loss_idt_A + self.loss_idt_B + self.feat_loss
+        self.loss_G = self.loss_G_A + self.loss_G_B + self.loss_cycle_A + self.loss_cycle_B + \
+                      self.loss_idt_A + self.loss_idt_B + self.feat_loss
         self.loss_G.backward()
 
     def optimize_parameters(self):

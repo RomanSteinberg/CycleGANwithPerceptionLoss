@@ -1,10 +1,7 @@
 import os.path
-import torchvision.transforms as transforms
 from data.base_dataset import BaseDataset, get_transform
 from data.image_folder import make_dataset
 from PIL import Image
-import PIL
-from pdb import set_trace as st
 
 
 class UnalignedDataset(BaseDataset):
@@ -16,6 +13,11 @@ class UnalignedDataset(BaseDataset):
 
         self.A_paths = make_dataset(self.dir_A)
         self.B_paths = make_dataset(self.dir_B)
+
+        if opt.verbosity >= 1:
+            print('Dataset for domain A contains %d images.' % len(self.A_paths))
+            print('Dataset for domain B contains %d images.' % len(self.B_paths))
+            print('Images limit %d.' % opt.max_dataset_size)
 
         self.A_paths = sorted(self.A_paths)
         self.B_paths = sorted(self.B_paths)
