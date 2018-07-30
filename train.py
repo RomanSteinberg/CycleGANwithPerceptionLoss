@@ -19,7 +19,7 @@ total_steps = 0
 train_start_time = time.time()
 for epoch in range(1, opt.niter + opt.niter_decay + 1):
     epoch_start_time = time.time()
-   	prev_total_steps = total_steps
+    prev_total_steps = total_steps
     for i, data in enumerate(dataset):
         iter_start_time = time.time()
         total_steps += opt.batchSize
@@ -29,7 +29,7 @@ for epoch in range(1, opt.niter + opt.niter_decay + 1):
         model.optimize_parameters()
 
         if total_steps % opt.display_freq == 0:
-		    # turned off due to opt.display_id==0
+            # turned off due to opt.display_id==0
             visualizer.display_current_results(model.get_current_visuals(), epoch)
 
         if total_steps % opt.print_freq == 0:
