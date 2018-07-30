@@ -30,6 +30,7 @@ def diagnose_network(net, name='network'):
 
 def save_image(image_numpy, image_path):
     image_pil = Image.fromarray(image_numpy)
+    mkdirs(os.path.dirname(image_path))
     image_pil.save(image_path)
 
 def info(object, spacing=10, collapse=1):

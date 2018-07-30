@@ -49,6 +49,7 @@ class Visualizer():
                     if idx % ncols == 0:
                         label_html += '<tr>%s</tr>' % label_html_row
                         label_html_row = ''
+                image_numpy = visuals.items()[-1][1]
                 white_image = np.ones_like(image_numpy.transpose([2, 0, 1]))*255
                 while idx % ncols != 0:
                     images.append(white_image)
@@ -72,20 +73,21 @@ class Visualizer():
 
         if self.use_html: # save images to a html file
             for label, image_numpy in visuals.items():
-                img_path = os.path.join(self.img_dir, 'epoch%.3d_%s.png' % (epoch, label))
+                img_path = os.path.join(self.img_dir, label, 'epoch%.3d.png' % epoch)
                 util.save_image(image_numpy, img_path)
             # update website
             webpage = html.HTML(self.web_dir, 'Experiment name = %s' % self.name, reflesh=1)
             for n in range(epoch, 0, -1):
                 webpage.add_header('epoch [%d]' % n)
-                ims = []
+                imgs_rel_paths = []
                 txts = []
 
                 for label, image_numpy in visuals.items():
-                    img_path = 'epoch%.3d_%s.png' % (n, label)
-                    ims.append(img_path)
+                    img_path = os.path.join(self.img_dir, label, 'epoch%.3d.png' % n)
+                    rel_path = os.path.relpath(img_path, self.web_dir)
+                    imgs_rel_paths.append(rel_path)
                     txts.append(label)
-                webpage.add_images(ims, txts, width=self.win_size)
+                webpage.add_images(imgs_rel_paths, txts, width=self.win_size)
             webpage.save()
 
     # errors: dictionary of error labels and values
@@ -117,17 +119,19 @@ class Visualizer():
     # save image to the disk
     def save_images(self, webpage, visuals, image_path):
         image_dir = webpage.get_image_dir()
-        fname = os.path.splitext(os.path.basename(image_path[0]))[0]
+        fname = os.path.basename(image_path[0])
+        fname_no_ext = os.path.splitext(fname)[0]
 
-        webpage.add_header(fname)
-        ims = []
+        webpage.add_header(fname_no_ext)
+        imgs_rel_paths = []
         txts = []
-        links = []
 
         for label, image_numpy in visuals.items():
             save_path = os.path.join(image_dir, label, fname)
+            rel_path = os.path.relpath(save_path, webpage.web_dir)
+
             util.save_image(image_numpy, save_path)
 
-            ims.append(fname)
+            imgs_rel_paths.append(rel_path)
             txts.append(label)
-        webpage.add_images(ims, txts, width=self.win_size)
+        webpage.add_images(imgs_rel_paths, txts, width=self.win_size)

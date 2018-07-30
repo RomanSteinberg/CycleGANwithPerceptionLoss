@@ -30,16 +30,15 @@ class HTML:
         self.t = table(border=border, style="table-layout: fixed;")
         self.doc.add(self.t)
 
-    def add_images(self, ims, txts, width=400):
+    def add_images(self, img_rel_paths, txts, width=400):
         self.add_table()
         with self.t:
             with tr():
-                for im, txt, link in zip(ims, txts):
-                    im_path = os.path.join('images', txt, im)
+                for im_rel_path, txt in zip(img_rel_paths, txts):
                     with td(style="word-wrap: break-word;", halign="center", valign="top"):
                         with p():
-                            with a(href=im_path):
-                                img(style="width:%dpx" % width, src=im_path)
+                            with a(href=im_rel_path):
+                                img(style="width:%dpx" % width, src=im_rel_path)
                             br()
                             p(txt)
 
