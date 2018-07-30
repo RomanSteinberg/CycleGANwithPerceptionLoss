@@ -40,6 +40,7 @@ class BaseOptions():
         self.parser.add_argument('--max_dataset_size', type=int, default=float("inf"), help='Maximum number of samples allowed per dataset. If the dataset directory contains more than max_dataset_size, only a subset is loaded.')
         self.parser.add_argument('--resize_or_crop', type=str, default='resize_and_crop', help='scaling and cropping of images at load time [resize_and_crop|crop|scale_width|scale_width_and_crop]')
         self.parser.add_argument('--no_flip', action='store_true', help='if specified, do not flip the images for data augmentation')
+        self.parser.add_argument('--verbosity', type=int, default=1, help='verbosity level')
 
         self.initialized = True
 
@@ -70,10 +71,11 @@ class BaseOptions():
         # save to the disk
         expr_dir = os.path.join(self.opt.checkpoints_dir, self.opt.name)
         util.mkdirs(expr_dir)
-        file_name = os.path.join(expr_dir, 'opt.txt')
-        with open(file_name, 'wt') as opt_file:
-            opt_file.write('------------ Options -------------\n')
-            for k, v in sorted(args.items()):
-                opt_file.write('%s: %s\n' % (str(k), str(v)))
-            opt_file.write('-------------- End ----------------\n')
+        if self.opt.isTrain:
+            file_name = os.path.join(expr_dir, 'opt.txt')
+            with open(file_name, 'wt') as opt_file:
+                opt_file.write('------------ Options -------------\n')
+                for k, v in sorted(args.items()):
+                    opt_file.write('%s: %s\n' % (str(k), str(v)))
+                opt_file.write('-------------- End ----------------\n')
         return self.opt
