@@ -29,11 +29,12 @@ def get_norm_layer(norm_type='instance'):
     elif norm_type == 'instance':
         norm_layer = functools.partial(nn.InstanceNorm2d, affine=False)
     else:
-        raise NotImplementedError('normalization layer [%s] is not found' % norm)
+        raise NotImplementedError('normalization layer [%s] is not found' % norm_type)
     return norm_layer
 
 
-def define_G(input_nc, output_nc, ngf, which_model_netG, norm='batch', use_dropout=False, gpu_ids=[]):
+def define_G(input_nc, output_nc, ngf, which_model_netG,
+             norm='batch', use_dropout=False, padding_type='reflect', gpu_ids=[]):
     netG = None
     use_gpu = len(gpu_ids) > 0
     norm_layer = get_norm_layer(norm_type=norm)
@@ -41,16 +42,20 @@ def define_G(input_nc, output_nc, ngf, which_model_netG, norm='batch', use_dropo
     if use_gpu:
         assert(torch.cuda.is_available())
 
+    resnet_G = lambda n: ResnetGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout,
+                                         padding_type=padding_type, n_blocks=n, gpu_ids=gpu_ids)
+    unet_G = lambda n: UnetGenerator(input_nc, output_nc, n, ngf, norm_layer=norm_layer, use_dropout=use_dropout,
+                                     gpu_ids=gpu_ids)
     if which_model_netG == 'resnet_12blocks':
-        netG = ResnetGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=12, gpu_ids=gpu_ids)
+        netG = resnet_G(12)
     elif which_model_netG == 'resnet_9blocks':
-        netG = ResnetGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=9, gpu_ids=gpu_ids)
+        netG = resnet_G(9)
     elif which_model_netG == 'resnet_6blocks':
-        netG = ResnetGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=6, gpu_ids=gpu_ids)
+        netG = resnet_G(6)
     elif which_model_netG == 'unet_128':
-        netG = UnetGenerator(input_nc, output_nc, 7, ngf, norm_layer=norm_layer, use_dropout=use_dropout, gpu_ids=gpu_ids)
+        netG = unet_G(7)
     elif which_model_netG == 'unet_256':
-        netG = UnetGenerator(input_nc, output_nc, 8, ngf, norm_layer=norm_layer, use_dropout=use_dropout, gpu_ids=gpu_ids)
+        netG = unet_G(8)
     else:
         raise NotImplementedError('Generator model name [%s] is not recognized' % which_model_netG)
     if len(gpu_ids) > 0:
@@ -160,7 +165,8 @@ class GANLoss(nn.Module):
 # Code and idea originally from Justin Johnson's architecture.
 # https://github.com/jcjohnson/fast-neural-style/
 class ResnetGenerator(nn.Module):
-    def __init__(self, input_nc, output_nc, ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False, n_blocks=6, gpu_ids=[], padding_type='reflect'):
+    def __init__(self, input_nc, output_nc, ngf=64,
+                 norm_layer=nn.BatchNorm2d, use_dropout=False, padding_type='reflect', n_blocks=6, gpu_ids=[]):
         assert(n_blocks >= 0)
         super(ResnetGenerator, self).__init__()
         self.input_nc = input_nc
@@ -168,7 +174,10 @@ class ResnetGenerator(nn.Module):
         self.ngf = ngf
         self.gpu_ids = gpu_ids
 
-        model = [nn.ReflectionPad2d(3),
+        padding_map = {'reflect': nn.ReflectionPad2d(3), 'zero': nn.ZeroPad2d(3), 'replicate': nn.ReplicationPad2d(3)}
+        padding_layer = padding_map[padding_type]
+
+        model = [padding_layer,
                  nn.Conv2d(input_nc, ngf, kernel_size=7, padding=0),
                  norm_layer(ngf),
                  nn.ReLU(True)]
@@ -192,7 +201,7 @@ class ResnetGenerator(nn.Module):
                                          padding=1, output_padding=1),
                       norm_layer(int(ngf * mult / 2)),
                       nn.ReLU(True)]
-        model += [nn.ReflectionPad2d(3)]
+        model += [padding_layer]
         model += [nn.Conv2d(ngf, output_nc, kernel_size=7, padding=0)]
         model += [nn.Tanh()]
 
@@ -213,31 +222,27 @@ class ResnetBlock(nn.Module):
 
     def build_conv_block(self, dim, padding_type, norm_layer, use_dropout):
         conv_block = []
-        p = 0
-        if padding_type == 'reflect':
-            conv_block += [nn.ReflectionPad2d(1)]
-        elif padding_type == 'replicate':
-            conv_block += [nn.ReplicationPad2d(1)]
-        elif padding_type == 'zero':
-            p = 1
-        else:
-            raise NotImplementedError('padding [%s] is not implemented' % padding_type)
 
+        def add_padding(conv_block, padding_type):
+            p = 0
+            if padding_type == 'reflect':
+                conv_block += [nn.ReflectionPad2d(1)]
+            elif padding_type == 'replicate':
+                conv_block += [nn.ReplicationPad2d(1)]
+            elif padding_type == 'zero':
+                p = 1
+            else:
+                raise NotImplementedError('padding [%s] is not implemented' % padding_type)
+            return p
+
+        p = add_padding(conv_block, padding_type)
         conv_block += [nn.Conv2d(dim, dim, kernel_size=3, padding=p),
                        norm_layer(dim),
                        nn.ReLU(True)]
         if use_dropout:
             conv_block += [nn.Dropout(0.5)]
 
-        p = 0
-        if padding_type == 'reflect':
-            conv_block += [nn.ReflectionPad2d(1)]
-        elif padding_type == 'replicate':
-            conv_block += [nn.ReplicationPad2d(1)]
-        elif padding_type == 'zero':
-            p = 1
-        else:
-            raise NotImplementedError('padding [%s] is not implemented' % padding_type)
+        p = add_padding(conv_block, padding_type)
         conv_block += [nn.Conv2d(dim, dim, kernel_size=3, padding=p),
                        norm_layer(dim)]
 
