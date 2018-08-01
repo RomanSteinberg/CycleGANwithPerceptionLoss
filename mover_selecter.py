@@ -21,5 +21,5 @@ filenames_sorted = sorted(filenames)
 for idx, filename in enumerate(filenames_sorted):
 	if idx%10 == 0:
 		cmd = 'cp '+str(original_path)+'/'+filename+' '+str(destination_path)+'/'+filename
-		print cmd
+		print(cmd)
 		p_cpy = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)

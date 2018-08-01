@@ -78,4 +78,9 @@ class BaseOptions():
                 for k, v in sorted(args.items()):
                     opt_file.write('%s: %s\n' % (str(k), str(v)))
                 opt_file.write('-------------- End ----------------\n')
+                opt_file.write('------------ Commit hash -------------\n')
+                import git
+                repo = git.Repo(search_parent_directories=True)
+                opt_file.write('branch: %s' % repo.active_branch)
+                opt_file.write('sha: %s' % repo.head.object.hexsha)
         return self.opt
