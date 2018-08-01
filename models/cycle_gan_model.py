@@ -8,19 +8,29 @@ from .base_model import BaseModel
 from . import networks
 
 
-def mse_loss(input, target):
-    return torch.sum((input - target)**2) / input.data.nelement()
+def mse_loss(input_tn, target_tn):
+    return torch.sum((input_tn - target_tn) ** 2) / input_tn.data.nelement()
 
 
-def color_loss(source, result):
-    img_shape = source.shape
-    top = int(img_shape[2] * 0.85)
-    left = int(img_shape[3] * 0.3)
-    height = int(img_shape[2] * 0.15)
-    width = int(img_shape[3] * 0.4)
-    crop_a = source[:, :, top:top+height, left:left+width]
-    crop_b = result[:, :, top:top+height, left:left+width]
-    return mse_loss(crop_a, crop_b)
+def color_loss(input_tn, target_tn):
+    img_shape = input_tn.shape
+    grain_sz = 5
+    height = 8 * grain_sz
+    width = 20 * grain_sz
+    top = img_shape[2] - height
+    left = (img_shape[3] - width) // 2
+
+    def pooling(tensor):
+        n_rows = height // grain_sz
+        n_cols = width // grain_sz
+        splitted_along_1d = torch.stack(tensor.split(n_rows, dim=2))
+        splitted_along_2d = torch.stack(splitted_along_1d.split(n_cols, dim=4))
+        loss_shape = tuple([n_cols, n_rows] + list(img_shape[:2]) + [grain_sz * grain_sz])
+        return splitted_along_2d.reshape(loss_shape).mean(4)
+
+    pooled_input = pooling(input_tn[:, :, top:top + height, left:left + width])
+    pooled_target = pooling(target_tn[:, :, top:top + height, left:left + width])
+    return ((pooled_input - pooled_target) ** 2).mean()
 
 
 class CycleGANModel(BaseModel):
