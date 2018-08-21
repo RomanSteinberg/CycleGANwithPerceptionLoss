@@ -9,7 +9,7 @@ from . import networks
 
 
 def mse_loss(input_tn, target_tn):
-    return torch.sum((input_tn - target_tn) ** 2) / input_tn.data.nelement()
+    return ((input_tn - target_tn) ** 2).mean()
 
 
 def color_loss(input_tn, target_tn):
@@ -30,7 +30,7 @@ def color_loss(input_tn, target_tn):
 
     pooled_input = pooling(input_tn[:, :, top:top + height, left:left + width])
     pooled_target = pooling(target_tn[:, :, top:top + height, left:left + width])
-    return ((pooled_input - pooled_target) ** 2).mean()
+    return mse_loss(pooled_input, pooled_target)
 
 
 class CycleGANModel(BaseModel):
@@ -68,6 +68,7 @@ class CycleGANModel(BaseModel):
 
         if not self.isTrain or opt.continue_train:
             which_epoch = opt.which_epoch
+            print('epoch to load: ', which_epoch) 
             self.load_network(self.netG_A, 'G_A', which_epoch)
             self.load_network(self.netG_B, 'G_B', which_epoch)
             if self.isTrain:

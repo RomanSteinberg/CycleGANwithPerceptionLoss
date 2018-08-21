@@ -39,5 +39,6 @@ test/.coverage
 */**/*.dylib*
 test/data/legacy_serialized.pt
 *~
+input/*
 
 \.idea/

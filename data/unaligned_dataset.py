@@ -1,4 +1,5 @@
 import os.path
+import numpy as np
 from data.base_dataset import BaseDataset, get_transform
 from data.image_folder import make_dataset
 from PIL import Image
@@ -11,35 +12,38 @@ class UnalignedDataset(BaseDataset):
         self.dir_A = os.path.join(opt.dataroot, opt.phase + 'A')
         self.dir_B = os.path.join(opt.dataroot, opt.phase + 'B')
 
-        self.A_paths = make_dataset(self.dir_A)
-        self.B_paths = make_dataset(self.dir_B)
+        A_paths = make_dataset(self.dir_A)
+        B_paths = make_dataset(self.dir_B)
+        self.length = min([len(A_paths), len(B_paths), self.opt.max_dataset_size])
 
         if opt.verbosity >= 1:
-            print('Dataset for domain A contains %d images.' % len(self.A_paths))
-            print('Dataset for domain B contains %d images.' % len(self.B_paths))
-            print('Images limit %d.' % opt.max_dataset_size)
+            print('Dataset for domain A contains %d images.' % len(A_paths))
+            print('Dataset for domain B contains %d images.' % len(B_paths))
+            print('Images limit %d.' % self.length)
 
-        self.A_paths = sorted(self.A_paths)
-        self.B_paths = sorted(self.B_paths)
-        self.A_size = len(self.A_paths)
-        self.B_size = len(self.B_paths)
+        # make reproducible random choice of data subset
+        state = np.random.get_state()
+        np.random.seed(111)
+        self.A_paths = sorted(np.random.choice(A_paths, self.length, replace=False).tolist())
+        self.B_paths = sorted(np.random.choice(B_paths, self.length, replace=False).tolist())
+        np.random.set_state(state)
+
         self.transform = get_transform(opt)
 
     def __getitem__(self, index):
-        A_path = self.A_paths[index % self.A_size]
-        B_path = self.B_paths[index % self.B_size]
+        def read_one_image(paths):
+            im_path = paths[index]
+            img = Image.open(im_path).convert('RGB')
+            return im_path, self.transform(img)
 
-        A_img = Image.open(A_path).convert('RGB')
-        B_img = Image.open(B_path).convert('RGB')
-
-        A_img = self.transform(A_img)
-        B_img = self.transform(B_img)
+        A_path, A_img = read_one_image(self.A_paths)
+        B_path, B_img = read_one_image(self.B_paths)
 
         return {'A': A_img, 'B': B_img,
                 'A_paths': A_path, 'B_paths': B_path}
 
     def __len__(self):
-        return max(self.A_size, self.B_size)
+        return self.length
 
     def name(self):
         return 'UnalignedDataset'
