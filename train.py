@@ -13,10 +13,10 @@ model = create_model(opt)
 visualizer = Visualizer(opt)
 
 total_steps = 0
-
+start_epoch = 1 if opt.which_epoch == 'latest' else int(opt.which_epoch)
 #!!! Control save_images and epoch number after continue training
 train_start_time = time.time()
-for epoch in range(1, opt.niter + opt.niter_decay + 1):
+for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
     epoch_start_time = time.time()
     prev_total_steps = total_steps
     for i, data in enumerate(dataset):
