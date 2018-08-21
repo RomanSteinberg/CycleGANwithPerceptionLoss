@@ -160,21 +160,16 @@ class GANLoss(nn.Module):
         return self.loss(input, target_tensor)
 
 
-# Defines the generator that consists of Resnet blocks between a few
-# downsampling/upsampling operations.
-# Code and idea originally from Justin Johnson's architecture.
-# https://github.com/jcjohnson/fast-neural-style/
-class ResnetGenerator(nn.Module):
-    def __init__(self, input_nc, output_nc, ngf=64,
-                 norm_layer=nn.BatchNorm2d, use_dropout=False, padding_type='reflect', n_blocks=6, gpu_ids=[]):
-        assert(n_blocks >= 0)
-        super(ResnetGenerator, self).__init__()
-        self.input_nc = input_nc
-        self.output_nc = output_nc
-        self.ngf = ngf
-        self.gpu_ids = gpu_ids
+class ResnetGeneratorHelper(nn.Module):
+    def __init__(self, input_nc, output_nc,
+                 ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False, padding_type='reflect',
+                 skip_gen_connection=False, n_blocks=6):
+        assert (n_blocks >= 0)
+        super(ResnetGeneratorHelper, self).__init__()
+        self.skip_gen_connection = skip_gen_connection
 
-        padding_map = {'reflect': nn.ReflectionPad2d(3), 'zero': nn.ZeroPad2d(3), 'replicate': nn.ReplicationPad2d(3)}
+        padding_map = {'reflect': nn.ReflectionPad2d(3), 'zero': nn.ZeroPad2d(3),
+                       'replicate': nn.ReplicationPad2d(3)}
         padding_layer = padding_map[padding_type]
 
         model = [padding_layer,
@@ -185,26 +180,49 @@ class ResnetGenerator(nn.Module):
         n_downsampling = 2
         for i in range(n_downsampling):
             mult = 2**i
-            model += [nn.Conv2d(ngf * mult, ngf * mult * 2, kernel_size=3,
+            num_inp = ngf * mult
+            model += [nn.Conv2d(num_inp, num_inp * 2, kernel_size=3,
                                 stride=2, padding=1),
-                      norm_layer(ngf * mult * 2),
+                      norm_layer(num_inp * 2),
                       nn.ReLU(True)]
 
         mult = 2**n_downsampling
         for i in range(n_blocks):
-            model += [ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout)]
+            num_inp = ngf * mult
+            model += [ResnetBlock(num_inp, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout)]
 
         for i in range(n_downsampling):
             mult = 2**(n_downsampling - i)
-            model += [nn.ConvTranspose2d(ngf * mult, int(ngf * mult / 2),
-                                         kernel_size=3, stride=2,
-                                         padding=1, output_padding=1),
-                      norm_layer(int(ngf * mult / 2)),
+            num_inp = ngf * mult
+            model += [nn.ConvTranspose2d(num_inp, int(num_inp/2), kernel_size=3, stride=2, padding=1, output_padding=1),
+                      norm_layer(int(num_inp/2)),
                       nn.ReLU(True)]
+
         model += [padding_layer]
         model += [nn.Conv2d(ngf, output_nc, kernel_size=7, padding=0)]
-        model += [nn.Tanh()]
+        self.model = nn.Sequential(*model)
 
+    def forward(self, input):
+        if self.skip_gen_connection:
+            return self.model(input) + input
+        else:
+            return self.model(input)
+
+# Defines the generator that consists of Resnet blocks between a few
+# downsampling/upsampling operations.
+# Code and idea originally from Justin Johnson's architecture.
+# https://github.com/jcjohnson/fast-neural-style/
+class ResnetGenerator(nn.Module):
+    def __init__(self, input_nc, output_nc, ngf=64,
+                 norm_layer=nn.BatchNorm2d, use_dropout=False, padding_type='reflect', skip_gen_connection=False,
+                 n_blocks=6, gpu_ids=[]):
+        assert(n_blocks >= 0)
+        super(ResnetGenerator, self).__init__()
+        self.gpu_ids = gpu_ids
+
+        model = [ResnetGeneratorHelper(input_nc, output_nc,
+                                       ngf, norm_layer, use_dropout, padding_type, skip_gen_connection, n_blocks)]
+        model += [nn.Tanh()]
         self.model = nn.Sequential(*model)
 
     def forward(self, input):
