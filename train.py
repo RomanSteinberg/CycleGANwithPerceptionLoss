@@ -3,6 +3,7 @@ from options.train_options import TrainOptions
 from data.data_loader import CreateDataLoader
 from models.models import create_model
 from util.visualizer import Visualizer
+from hyperdash import Experiment
 
 opt = TrainOptions().parse()
 data_loader = CreateDataLoader(opt)
@@ -11,12 +12,14 @@ dataset_size = len(data_loader)
 
 model = create_model(opt)
 visualizer = Visualizer(opt)
+exp = Experiment("gan")
 
 total_steps = 0
 start_epoch = 1 if opt.which_epoch == 'latest' else int(opt.which_epoch)
+end_epoch = opt.niter + opt.niter_decay
 #!!! Control save_images and epoch number after continue training
 train_start_time = time.time()
-for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
+for epoch in range(start_epoch, end_epoch + 1):
     epoch_start_time = time.time()
     prev_total_steps = total_steps
     for i, data in enumerate(dataset):
@@ -37,6 +40,8 @@ for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
             visualizer.print_current_errors(epoch, epoch_iter, errors, t)
             if opt.display_id > 0:
                 visualizer.plot_current_errors(epoch, float(epoch_iter)/dataset_size, opt, errors)
+            for key, value in errors.items():
+                exp.metric(key, value.item())
 
         if total_steps % opt.save_latest_freq == 0:
             print('saving the latest model (epoch %d, total_steps %d)' % (epoch, total_steps))
@@ -48,10 +53,12 @@ for epoch in range(start_epoch, opt.niter + opt.niter_decay + 1):
         model.save('latest')
         model.save(epoch)
 
-    print('End of epoch %d / %d \t Time Taken: %d sec' %
-          (epoch, opt.niter + opt.niter_decay, time.time() - epoch_start_time))
+    epoch_time = time.time() - epoch_start_time
+    eta = (time.time() - train_start_time) / (3600 * (end_epoch - epoch))
+    print('End of epoch %d / %d \t Time Taken: %d sec, ETA: %d h' % (epoch, end_epoch, epoch_time, eta))
 
     if epoch > opt.niter:
         model.update_learning_rate()
 
 print('End of training. Time Taken: %d sec' % (time.time() - train_start_time))
+exp.end()

@@ -109,10 +109,11 @@ class Visualizer():
     # errors: same format as |errors| of plotCurrentErrors
     def print_current_errors(self, epoch, i, errors, t):
         message = '(epoch: %d, iters: %d, time: %.3f) ' % (epoch, i, t)
+        print(message)
         for k, v in errors.items():
             message += '%s: %.3f ' % (k, v)
 
-        print(message)
+        #print(message)
         with open(self.log_name, "a") as log_file:
             log_file.write('%s\n' % message)
 
