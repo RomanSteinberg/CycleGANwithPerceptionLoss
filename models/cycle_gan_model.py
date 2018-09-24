@@ -7,6 +7,7 @@ from util.image_pool import ImagePool
 from .base_model import BaseModel
 from . import networks
 
+lambda_D = 0.2
 
 def mse_loss(input_tn, target_tn):
     return ((input_tn - target_tn) ** 2).mean()
@@ -137,7 +138,7 @@ class CycleGANModel(BaseModel):
         pred_fake = netD.forward(fake.detach())
         loss_D_fake = self.criterionGAN(pred_fake, False)
         # Combined loss
-        loss_D = (loss_D_real + loss_D_fake) * 0.5
+        loss_D = (loss_D_real + loss_D_fake) * 0.5 * lambda_D
         # backward
         loss_D.backward()
         return loss_D
