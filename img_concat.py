@@ -10,8 +10,8 @@ im_dir = './results/rainy_sunny_cyclegan/test_latest/images'
 im_path_list_real = [path.join(im_dir, f) for f in sorted(listdir(im_dir)) if 'real_B' in f]
 im_path_list_fake = [path.join(im_dir, f) for f in sorted(listdir(im_dir)) if 'fake_A' in f]
 
-print im_path_list_real[:10]
-print im_path_list_fake[:10]
+print(im_path_list_real[:10])
+print(im_path_list_fake[:10])
 
 # open images and calculate total widths and heights
 im_list = []
@@ -50,7 +50,7 @@ for ir in range(n/imgs_per_row/imgrows_per_result):
     for i in range(imgrows_per_result):
         x_offset = 0
         for j in range(imgs_per_row):
-            print i, j
+            print(i, j)
             new_im.paste(real_images[ir*imgs_per_row*imgrows_per_result + i*imgs_per_row+j], (x_offset, y_offset))
             x_offset += max_width
             new_im.paste(fake_images[ir*imgs_per_row*imgrows_per_result + i*imgs_per_row+j], (x_offset, y_offset))

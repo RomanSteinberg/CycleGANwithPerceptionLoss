@@ -105,9 +105,11 @@ class CycleGANModel(BaseModel):
     def set_input(self, input):
         AtoB = self.opt.which_direction == 'AtoB'
         input_A = input['A' if AtoB else 'B']
-        input_B = input['B' if AtoB else 'A']
         self.input_A.resize_(input_A.size()).copy_(input_A)
-        self.input_B.resize_(input_B.size()).copy_(input_B)
+        AtoB_test_mode = AtoB and not self.opt.isTrain
+        if not AtoB_test_mode:
+            input_B = input['B' if AtoB else 'A']
+            self.input_B.resize_(input_B.size()).copy_(input_B)
         self.image_paths = input['A_paths' if AtoB else 'B_paths']
 
     def forward(self):
@@ -119,9 +121,9 @@ class CycleGANModel(BaseModel):
         self.fake_B = self.netG_A.forward(self.real_A)
         self.rec_A = self.netG_B.forward(self.fake_B)
 
-        self.real_B = Variable(self.input_B, volatile=True)
-        self.fake_A = self.netG_B.forward(self.real_B)
-        self.rec_B = self.netG_A.forward(self.fake_A)
+        # self.real_B = Variable(self.input_B, volatile=True)
+        # self.fake_A = self.netG_B.forward(self.real_B)
+        # self.rec_B = self.netG_A.forward(self.fake_A)
 
     # get image paths
     def get_image_paths(self):
@@ -260,20 +262,22 @@ class CycleGANModel(BaseModel):
                                 ('D_B', D_B), ('G_B', G_B), ('Cyc_B', Cyc_B)])
 
     def get_current_visuals(self):
-        real_A = util.tensor2im(self.real_A.data)
-        fake_B = util.tensor2im(self.fake_B.data)
-        rec_A = util.tensor2im(self.rec_A.data)
-        real_B = util.tensor2im(self.real_B.data)
-        fake_A = util.tensor2im(self.fake_A.data)
-        rec_B = util.tensor2im(self.rec_B.data)
-        if self.opt.identity > 0.0:
-            idt_A = util.tensor2im(self.idt_A.data)
-            idt_B = util.tensor2im(self.idt_B.data)
-            return OrderedDict([('real_A', real_A), ('fake_B', fake_B), ('rec_A', rec_A), ('idt_B', idt_B),
-                                ('real_B', real_B), ('fake_A', fake_A), ('rec_B', rec_B), ('idt_A', idt_A)])
-        else:
-            return OrderedDict([('real_A', real_A), ('fake_B', fake_B), ('rec_A', rec_A),
-                                ('real_B', real_B), ('fake_A', fake_A), ('rec_B', rec_B)])
+
+        def helper(tensors, names):
+            return OrderedDict([(name, util.tensor2im(tensor.data)) for name, tensor in zip(names, tensors)])
+
+        tensors, names = [self.real_A, self.fake_B, self.rec_A], ['real_A', 'fake_B', 'rec_A']
+        AtoB_test_mode = self.opt.which_direction == 'AtoB' and not self.opt.isTrain
+        if not AtoB_test_mode:
+            tensors += [self.real_B, self.fake_A, self.rec_B]
+            names += ['real_B', 'fake_A', 'rec_B']
+            if self.opt.identity > 0.0:
+                tensors.insert(3, self.idt_A)
+                names.insert(3, 'idt_A')
+                tensors.append(self.idt_B)
+                names.append('idt_B')
+
+        return helper(tensors, names)
 
     def save(self, label):
         self.save_network(self.netG_A, 'G_A', label, self.gpu_ids)

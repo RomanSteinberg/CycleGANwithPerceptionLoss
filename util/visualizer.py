@@ -118,9 +118,9 @@ class Visualizer():
             log_file.write('%s\n' % message)
 
     # save image to the disk
-    def save_images(self, webpage, visuals, image_path):
-        image_dir = webpage.get_image_dir()
-        fname = os.path.basename(image_path[0])
+    def save_images(self, webpage, visuals, input_path):
+        vis_image_dir = webpage.get_image_dir()
+        fname = os.path.basename(input_path[0])
         fname_no_ext = os.path.splitext(fname)[0]
 
         webpage.add_header(fname_no_ext)
@@ -128,7 +128,7 @@ class Visualizer():
         txts = []
 
         for label, image_numpy in visuals.items():
-            save_path = os.path.join(image_dir, label, fname)
+            save_path = os.path.join(vis_image_dir, label, fname)
             rel_path = os.path.relpath(save_path, webpage.web_dir)
 
             util.save_image(image_numpy, save_path)

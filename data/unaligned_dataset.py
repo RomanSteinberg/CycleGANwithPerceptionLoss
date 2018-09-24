@@ -14,7 +14,13 @@ class UnalignedDataset(BaseDataset):
 
         A_paths = make_dataset(self.dir_A)
         B_paths = make_dataset(self.dir_B)
-        self.length = min([len(A_paths), len(B_paths), self.opt.max_dataset_size])
+        if self.opt.isTrain:
+            self.length = min([len(A_paths), len(B_paths), self.opt.max_dataset_size])
+            allow_repeats_A, allow_repeats_B = False, False
+        else:
+            self.length = min(max([len(A_paths), len(B_paths)]), self.opt.max_dataset_size)
+            allow_repeats_A = self.length > len(A_paths)
+            allow_repeats_B = self.length > len(B_paths)
 
         if opt.verbosity >= 1:
             print('Dataset for domain A contains %d images.' % len(A_paths))
@@ -24,8 +30,8 @@ class UnalignedDataset(BaseDataset):
         # make reproducible random choice of data subset
         state = np.random.get_state()
         np.random.seed(111)
-        self.A_paths = sorted(np.random.choice(A_paths, self.length, replace=False).tolist())
-        self.B_paths = sorted(np.random.choice(B_paths, self.length, replace=False).tolist())
+        self.A_paths = sorted(np.random.choice(A_paths, self.length, replace=allow_repeats_A).tolist())
+        self.B_paths = sorted(np.random.choice(B_paths, self.length, replace=allow_repeats_B).tolist())
         np.random.set_state(state)
 
         self.transform = get_transform(opt)

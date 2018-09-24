@@ -17,7 +17,6 @@ exp = Experiment("gan")
 total_steps = 0
 start_epoch = 1 if opt.which_epoch == 'latest' else int(opt.which_epoch)
 end_epoch = opt.niter + opt.niter_decay
-#!!! Control save_images and epoch number after continue training
 train_start_time = time.time()
 for epoch in range(start_epoch, end_epoch + 1):
     epoch_start_time = time.time()
@@ -54,8 +53,8 @@ for epoch in range(start_epoch, end_epoch + 1):
         model.save(epoch)
 
     epoch_time = time.time() - epoch_start_time
-    eta = (time.time() - train_start_time) / (3600 * (end_epoch - epoch))
-    print('End of epoch %d / %d \t Time Taken: %d sec, ETA: %d h' % (epoch, end_epoch, epoch_time, eta))
+    eta = (end_epoch - epoch) * (time.time() - train_start_time) / (3600 * (epoch - start_epoch + 1))
+    print('End of epoch %d / %d \t Time Taken: %d sec, ETA: %f h' % (epoch, end_epoch, epoch_time, eta))
 
     if epoch > opt.niter:
         model.update_learning_rate()
