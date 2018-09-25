@@ -40,6 +40,8 @@ class TrainOptions(BaseOptions):
                                  help='weight for perception loss between real B and reconstruced B ')
         self.parser.add_argument('--lambda_feat_color', type=float, default=0,
                                  help='weight for color loss between real A and fake B')
+        self.parser.add_argument('--lambda_D', type=float, default=1.0,
+                                 help='weight for discriminators loss')
         self.parser.add_argument('--pool_size', type=int, default=50,
                                  help='the size of image buffer that stores previously generated images')
         self.parser.add_argument('--no_html', action='store_true',
