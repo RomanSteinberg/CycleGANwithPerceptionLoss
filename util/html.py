@@ -22,6 +22,11 @@ class HTML:
     def get_image_dir(self):
         return self.img_dir
 
+    def add_url(self, url, text):
+        with self.doc:
+            with a(href=url):
+                h2(text)
+
     def add_header(self, str):
         with self.doc:
             h3(str)

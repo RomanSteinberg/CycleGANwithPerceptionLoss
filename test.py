@@ -21,12 +21,16 @@ def main():
         range_str = list(map(int, str(opt.which_epoch).split(',')))
         first_epoch, last_epoch = range_str[:2]
         step = range_str[2] if len(range_str) == 3 else 1
-        res_dir = os.path.join(opt.checkpoints_dir, opt.name, 'test') if opt.results_dir is None else opt.results_dir
+
+        def get_results_dir(checkpoints_dir, name, epoch, res_dir=None):
+            folder = os.path.join(checkpoints_dir, name, 'test') if res_dir is None else res_dir
+            return os.path.join(folder, 'epoch_%d' % epoch)
 
         for epoch in range(first_epoch, last_epoch, step):
+            url_next = os.path.join('../../', get_results_dir('', '', epoch + step), 'index.html')
             opt.which_epoch = epoch
-            opt.results_dir = os.path.join(res_dir, 'epoch_%d' % epoch)
-            tester.run(opt)
+            opt.results_dir = get_results_dir(opt.checkpoints_dir, opt.name, epoch)
+            tester.run(opt, url_next)
     else:
         tester.run(opt)
 
@@ -36,7 +40,7 @@ class Tester:
         data_loader = CreateDataLoader(opt)
         self.dataset = data_loader.load_data()
 
-    def run(self, opt):
+    def run(self, opt, url_next=None):
         self.model = create_model(opt)
         self.visualizer = Visualizer(opt)
         # create webpage
@@ -44,6 +48,8 @@ class Tester:
             if opt.results_dir is None else opt.results_dir
         util.mkdirs(web_dir)
         webpage = html.HTML(web_dir, 'Experiment = %s, Phase = %s, Epoch = %s' % (opt.name, opt.phase, opt.which_epoch))
+        if url_next is not None:
+            webpage.add_url(url_next, 'Next')
         # test
         for i, data in enumerate(self.dataset):
             if i >= opt.how_many:
