@@ -26,11 +26,14 @@ def main():
             folder = os.path.join(checkpoints_dir, name, 'test') if res_dir is None else res_dir
             return os.path.join(folder, 'epoch_%d' % epoch)
 
+        url_prev = None
         for epoch in range(first_epoch, last_epoch, step):
-            url_next = os.path.join('../../', get_results_dir('', '', epoch + step), 'index.html')
+            url_next = os.path.join('../../', get_results_dir('', '', epoch + step), 'index.html') \
+                if epoch + step < last_epoch else None
             opt.which_epoch = epoch
             opt.results_dir = get_results_dir(opt.checkpoints_dir, opt.name, epoch)
-            tester.run(opt, url_next)
+            tester.run(opt, url_prev, url_next)
+            url_prev = os.path.join('../../', get_results_dir('', '', epoch), 'index.html')
     else:
         tester.run(opt)
 
@@ -40,7 +43,7 @@ class Tester:
         data_loader = CreateDataLoader(opt)
         self.dataset = data_loader.load_data()
 
-    def run(self, opt, url_next=None):
+    def run(self, opt, url_prev=None, url_next=None):
         self.model = create_model(opt)
         self.visualizer = Visualizer(opt)
         # create webpage
@@ -48,8 +51,9 @@ class Tester:
             if opt.results_dir is None else opt.results_dir
         util.mkdirs(web_dir)
         webpage = html.HTML(web_dir, 'Experiment = %s, Phase = %s, Epoch = %s' % (opt.name, opt.phase, opt.which_epoch))
-        if url_next is not None:
-            webpage.add_url(url_next, 'Next')
+        webpage.add_url(url_prev, 'Prev')
+        webpage.add_url(url_next, 'Next')
+
         # test
         for i, data in enumerate(self.dataset):
             if i >= opt.how_many:

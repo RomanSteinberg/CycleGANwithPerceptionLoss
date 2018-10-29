@@ -19,13 +19,17 @@ class HTML:
             with self.doc.head:
                 meta(http_equiv="reflesh", content=str(reflesh))
 
+        self.top_div = div(style="display:block")
+        self.doc.add(self.top_div)
+
     def get_image_dir(self):
         return self.img_dir
 
     def add_url(self, url, text):
-        with self.doc:
-            with a(href=url):
-                h2(text)
+        if url is not None:
+            with self.top_div:
+                with a(href=url, style="padding-right:30px"):
+                    h2(text, style="display:inline-block")
 
     def add_header(self, str):
         with self.doc:

@@ -52,6 +52,8 @@ def define_G(input_nc, output_nc, ngf, which_model_netG,
         netG = resnet_G(9)
     elif which_model_netG == 'resnet_6blocks':
         netG = resnet_G(6)
+    elif which_model_netG == 'resnet_15blocks':
+        netG = resnet_G(15)
     elif which_model_netG == 'unet_128':
         netG = unet_G(7)
     elif which_model_netG == 'unet_256':
