@@ -6,6 +6,19 @@ import util.util as util
 from util.image_pool import ImagePool
 from .base_model import BaseModel
 from . import networks
+from skimage.color import rgb2lab, deltaE_ciede2000
+import numpy as np
+
+
+def lab_identity_loss(tensor1, tensor2):
+    def transform2lab(tensor):
+        chw_img = (tensor.data[0].cpu().numpy() + 1.) / 2.
+        return rgb2lab(np.transpose(chw_img, (1, 2, 0)))
+
+    img_lab1 = transform2lab(tensor1)
+    img_lab2 = transform2lab(tensor2)
+    lab_norm = np.linalg.norm(deltaE_ciede2000(img_lab1, img_lab2))
+    return torch.tensor(lab_norm).float().to('cuda')
 
 
 def mse_loss(input_tn, target_tn):
@@ -82,7 +95,8 @@ class CycleGANModel(BaseModel):
             # define loss functions
             self.criterionGAN = networks.GANLoss(use_lsgan=not opt.no_lsgan, tensor=self.Tensor)
             self.criterionCycle = torch.nn.L1Loss()
-            self.criterionIdt = torch.nn.L1Loss()
+            # self.criterionIdt = torch.nn.L1Loss()
+            self.criterionIdt = lab_identity_loss
             self.criterionFeat = mse_loss
             self.criterionColor = color_loss
             # initialize optimizers
