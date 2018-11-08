@@ -5,6 +5,7 @@ import torchvision
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import Variable
+from util import switch_norm as sn
 
 import math
 import functools
@@ -23,11 +24,13 @@ def weights_init(m):
         m.bias.data.fill_(0)
 
 
-def get_norm_layer(norm_type='instance'):
+def get_norm_layer(norm_type='switchable'):
     if norm_type == 'batch':
         norm_layer = functools.partial(nn.BatchNorm2d, affine=True)
     elif norm_type == 'instance':
         norm_layer = functools.partial(nn.InstanceNorm2d, affine=False)
+    elif norm_type == 'switchable':
+        norm_layer = sn.SwitchNorm2d
     else:
         raise NotImplementedError('normalization layer [%s] is not found' % norm_type)
     return norm_layer
