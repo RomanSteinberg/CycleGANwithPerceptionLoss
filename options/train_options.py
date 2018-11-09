@@ -24,6 +24,7 @@ class TrainOptions(BaseOptions):
         self.parser.add_argument('--lr', type=float, default=0.0002, help='initial learning rate for adam')
         self.parser.add_argument('--no_lsgan', action='store_true',
                                  help='do *not* use least square GAN, if false, use vanilla GAN')
+        self.parser.add_argument('--smoothed_label_D', action='store_true', help='use smoothed labels for D net')
         self.parser.add_argument('--lambda_A', type=float, default=10.0, help='weight for cycle loss (A -> B -> A)')
         self.parser.add_argument('--lambda_B', type=float, default=10.0, help='weight for cycle loss (B -> A -> B)')
         self.parser.add_argument('--lambda_feat_AfB', type=float, default=0,
@@ -44,6 +45,7 @@ class TrainOptions(BaseOptions):
                                  help='weight for discriminators loss')
         self.parser.add_argument('--pool_size', type=int, default=50,
                                  help='the size of image buffer that stores previously generated images')
+        self.parser.add_argument('--identity_loss', type=str, default='l1', help='l1, lab_mse, lab_mae')
         self.parser.add_argument('--no_html', action='store_true',
                                  help='do not save intermediate training results to [opt.checkpoints_dir]/['
                                       'opt.name]/web/')

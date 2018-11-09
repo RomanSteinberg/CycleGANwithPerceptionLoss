@@ -40,7 +40,8 @@ class Pix2PixModel(BaseModel):
             self.fake_AB_pool = ImagePool(opt.pool_size)
             self.old_lr = opt.lr
             # define loss functions
-            self.criterionGAN = networks.GANLoss(use_lsgan=not opt.no_lsgan, tensor=self.Tensor)
+            self.criterionGAN = networks.GANLoss(use_lsgan=not opt.no_lsgan, tensor=self.Tensor,
+                                                 smoothed=opt.smoothed_label_D)
             self.criterionL1 = torch.nn.L1Loss()
 
             # initialize optimizers
