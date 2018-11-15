@@ -31,9 +31,9 @@ class Pix2PixModel(BaseModel):
             self.netD = networks.define_D(opt.input_nc + opt.output_nc, opt.ndf,
                                           opt.which_model_netD,
                                           opt.n_layers_D, opt.norm, use_sigmoid, self.gpu_ids)
-        if not self.isTrain or opt.continue_train:
+        if not self.isTrain or opt.continue_train in ['load_G_and_D', 'load_G']:
             self.load_network(self.netG, 'G', opt.which_epoch)
-            if self.isTrain:
+            if self.isTrain and opt.continue_train == 'load_G_and_D':
                 self.load_network(self.netD, 'D', opt.which_epoch)
 
         if self.isTrain:
