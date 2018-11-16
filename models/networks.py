@@ -69,8 +69,9 @@ def define_G(input_nc, output_nc, ngf, which_model_netG,
     return netG
 
 
-def define_D(input_nc, ndf, which_model_netD,
+def define_D(input_shape, ndf, which_model_netD,
              n_layers_D=3, norm='batch', use_sigmoid=False, gpu_ids=[]):
+
     netD = None
     use_gpu = len(gpu_ids) > 0
     norm_layer = get_norm_layer(norm_type=norm)
@@ -78,9 +79,13 @@ def define_D(input_nc, ndf, which_model_netD,
     if use_gpu:
         assert(torch.cuda.is_available())
     if which_model_netD == 'basic':
-        netD = NLayerDiscriminator(input_nc, ndf, n_layers=3, norm_layer=norm_layer, use_sigmoid=use_sigmoid, gpu_ids=gpu_ids)
+        netD = NLayerDiscriminator(input_shape[0], ndf, n_layers=3, norm_layer=norm_layer, use_sigmoid=use_sigmoid,
+                                   gpu_ids=gpu_ids)
     elif which_model_netD == 'n_layers':
-        netD = NLayerDiscriminator(input_nc, ndf, n_layers_D, norm_layer=norm_layer, use_sigmoid=use_sigmoid, gpu_ids=gpu_ids)
+        netD = NLayerDiscriminator(input_shape[0], ndf, n_layers_D, norm_layer=norm_layer, use_sigmoid=use_sigmoid,
+                                   gpu_ids=gpu_ids)
+    elif which_model_netD == 'wasserstein':
+        netD = WassersteinDiscriminator(input_shape, ndf, n_layers_D, norm_layer=norm_layer, gpu_ids=gpu_ids)
     else:
         raise NotImplementedError('Discriminator model name [%s] is not recognized' %
                                   which_model_netD)
@@ -170,9 +175,9 @@ class GANLoss(nn.Module):
             target_tensor = self.fake_label_var
         return target_tensor
 
-    def __call__(self, input, target_is_real):
-        target_tensor = self.get_target_tensor(input, target_is_real)
-        return self.loss(input, target_tensor)
+    def __call__(self, input_tn, target_is_real):
+        target_tensor = self.get_target_tensor(input_tn, target_is_real)
+        return self.loss(input_tn, target_tensor)
 
 
 class ResnetGeneratorHelper(nn.Module):
@@ -201,9 +206,8 @@ class ResnetGeneratorHelper(nn.Module):
                       norm_layer(num_inp * 2),
                       nn.ReLU(True)]
 
-        mult = 2**n_downsampling
+        num_inp = ngf * 2**n_downsampling
         for i in range(n_blocks):
-            num_inp = ngf * mult
             model += [ResnetBlock(num_inp, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout)]
 
         for i in range(n_downsampling):
@@ -271,7 +275,7 @@ class ResnetBlock(nn.Module):
         p = add_padding(conv_block, padding_type)
         conv_block += [nn.Conv2d(dim, dim, kernel_size=3, padding=p),
                        norm_layer(dim),
-                       nn.ReLU(True)]
+                       nn.ReLU(inplace=False)] # ТУТ СТРАННО!
         if use_dropout:
             conv_block += [nn.Dropout(0.5)]
 
@@ -382,7 +386,6 @@ class NLayerDiscriminator(nn.Module):
         ]
 
         nf_mult = 1
-        nf_mult_prev = 1
         for n in range(1, n_layers):
             nf_mult_prev = nf_mult
             nf_mult = min(2**n, 8)
@@ -414,6 +417,39 @@ class NLayerDiscriminator(nn.Module):
             return nn.parallel.data_parallel(self.model, input, self.gpu_ids)
         else:
             return self.model(input)
+
+
+class WassersteinDiscriminator(nn.Module):
+    def __init__(self, input_shape, ndf=64, n_blocks=4, padding_type='zero', norm_layer=nn.BatchNorm2d, use_dropout=False,
+                 gpu_ids=[]):
+        super(WassersteinDiscriminator, self).__init__()
+        self.gpu_ids = gpu_ids
+        input_nc, h, w = input_shape
+        # kw = 4
+        # padw = int(np.ceil((kw-1)/2))
+        sequence = [nn.Conv2d(input_nc, ndf, kernel_size=3, stride=2, padding=1),
+            nn.LeakyReLU(0.2, True)]
+
+        n_blocks = 1
+        for i in range(n_blocks):
+            sequence += [ResnetBlock(ndf, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout)]
+
+        sequence += [Flatten(),
+                     nn.Linear(ndf * h//2 * w//2, 1)]
+
+        self.model = nn.Sequential(*sequence)
+
+    def forward(self, input):
+        if len(self.gpu_ids) and isinstance(input.data, torch.cuda.FloatTensor):
+            return nn.parallel.data_parallel(self.model, input, self.gpu_ids)
+        else:
+            return self.model(input)
+
+
+class Flatten(nn.Module):
+    def forward(self, x):
+        return x.view(x.size()[0], -1)
+
 
 class ResNet34(nn.Module):
 

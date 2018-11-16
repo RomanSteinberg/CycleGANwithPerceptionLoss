@@ -1,7 +1,9 @@
 import torch
-from collections import OrderedDict
-from torch.autograd import Variable
 import itertools
+
+from collections import OrderedDict
+from torch.autograd import Variable, grad
+
 import util.util as util
 from util.image_pool import ImagePool
 from .base_model import BaseModel
@@ -72,10 +74,10 @@ class CycleGANModel(BaseModel):
 
         if self.isTrain:
             use_sigmoid = opt.no_lsgan
-            self.netD_A = networks.define_D(opt.output_nc, opt.ndf,
+            self.netD_A = networks.define_D((opt.output_nc, opt.fineSize, opt.fineSize), opt.ndf,
                                             opt.which_model_netD,
                                             opt.n_layers_D, opt.norm, use_sigmoid, self.gpu_ids)
-            self.netD_B = networks.define_D(opt.input_nc, opt.ndf,
+            self.netD_B = networks.define_D((opt.input_nc, opt.fineSize, opt.fineSize), opt.ndf,
                                             opt.which_model_netD,
                                             opt.n_layers_D, opt.norm, use_sigmoid, self.gpu_ids)
             self.netFeat = networks.define_feature_network(opt.which_model_feat, self.gpu_ids)
@@ -159,13 +161,55 @@ class CycleGANModel(BaseModel):
         loss_D.backward()
         return loss_D
 
+    def backward_D_wgan(self, netD, real, fake):
+        loss_D_real = -netD.forward(real).mean()
+        loss_D_fake = netD.forward(fake).mean()
+        gradient_penalty = self.__calc_gradient_penalty(netD, real, fake)
+        gradient_penalty.backward()
+        loss_D_fake.backward()
+        loss_D_real.backward()
+        # loss_D = loss_D_fake - loss_D_real
+        loss_D = loss_D_fake - loss_D_real + gradient_penalty
+        return loss_D
+
+    def __calc_gradient_penalty(self, netD, real, fake):
+        batch_size = self.opt.batchSize
+        dim = self.opt.fineSize
+
+        alpha = torch.rand(batch_size, 1, 1, 1)
+        alpha = alpha.expand_as(real).cuda()
+        interpolated = alpha * real.data + (1 - alpha) * fake.data
+        interpolated = Variable(interpolated, requires_grad=True).cuda()
+
+        # Calculate probability of interpolated examples
+        prob_interpolated = netD.forward(interpolated)
+
+        # interpolated = Variable(fake.clone(), requires_grad=True).cuda()
+        # prob_interpolated = 2*interpolated
+
+        # Calculate gradients of probabilities with respect to examples
+        gradients = grad(outputs=prob_interpolated, inputs=interpolated,
+                         grad_outputs=torch.ones(prob_interpolated.size()).cuda(),
+                         create_graph=True, retain_graph=True)[0]
+
+        # Derivatives of the gradient close to 0 can cause problems because of
+        # the square root, so manually calculate norm and add epsilon
+        gradients_flatten = gradients.view(batch_size, -1)
+        gradients_norm = torch.sqrt(torch.sum(gradients_flatten ** 2, dim=1) + 1e-12)
+
+        # Return gradient penalty
+        gradient_penalty = self.opt.lambda_D * ((gradients_norm - 1) ** 2).mean()
+        return gradient_penalty
+
     def backward_D_A(self):
         fake_B = self.fake_B_pool.query(self.fake_B)
-        self.loss_D_A = self.backward_D_basic(self.netD_A, self.real_B, fake_B)
+        backward = self.backward_D_wgan if self.opt.which_model_netD == 'wasserstein' else self.backward_D_basic
+        self.loss_D_A = backward(self.netD_A, self.real_B, fake_B)
 
     def backward_D_B(self):
         fake_A = self.fake_A_pool.query(self.fake_A)
-        self.loss_D_B = self.backward_D_basic(self.netD_B, self.real_A, fake_A)
+        backward = self.backward_D_wgan if self.opt.which_model_netD == 'wasserstein' else self.backward_D_basic
+        self.loss_D_B = backward(self.netD_B, self.real_A, fake_A)
 
     def backward_G(self):
         lambda_idt = self.opt.identity
@@ -205,23 +249,22 @@ class CycleGANModel(BaseModel):
         pred_fake = self.netD_B.forward(self.fake_A)
         self.loss_G_B = self.criterionGAN(pred_fake, True)
         # Forward cycle loss
-        self.rec_A = self.netG_B.forward(self.fake_B) 
-        
+        self.rec_A = self.netG_B.forward(self.fake_B)
+
         # gamma = 1.
         # l_rec_A =  .2126 * self.rec_A[:,0]**gamma + .7152 * self.rec_A[:,1]**gamma + .0722 * self.rec_A[:,2]**gamma
         # l_real_A =  .2126 * self.real_A[:,0]**gamma + .7152 * self.real_A[:,1]**gamma + .0722 * self.real_A[:,2]**gamma
-        
+
         self.loss_cycle_A = self.criterionCycle(self.rec_A, self.real_A) * lambda_A
-        
+
         # Backward cycle loss
         self.rec_B = self.netG_A.forward(self.fake_A)
 
         # gamma = 1.
         # l_rec_B =  .2126 * self.rec_B[:,0]**gamma + .7152 * self.rec_B[:,1]**gamma + .0722 * self.rec_B[:,2]**gamma
         # l_real_B =  .2126 * self.real_B[:,0]**gamma + .7152 * self.real_B[:,1]**gamma + .0722 * self.real_B[:,2]**gamma
-        
-        self.loss_cycle_B = self.criterionCycle(self.rec_B, self.real_B) * lambda_B
 
+        self.loss_cycle_B = self.criterionCycle(self.rec_B, self.real_B) * lambda_B
 
         # print ('self.netFeat(self.real_A).parameters()', self.netFeat(self.real_A).parameters())
         # print ('self.netFeat(self.fake_B).parameters()', self.netFeat(self.fake_B).parameters())
