@@ -24,7 +24,8 @@ class TrainOptions(BaseOptions):
         self.parser.add_argument('--lr', type=float, default=0.0002, help='initial learning rate for adam')
         self.parser.add_argument('--no_lsgan', action='store_true',
                                  help='do *not* use least square GAN, if false, use vanilla GAN')
-        self.parser.add_argument('--smoothed_label_D', action='store_true', help='use smoothed labels for D net')
+        self.parser.add_argument('--smoothed_label', type=str, default='no', 
+                                 help='use smoothed labels for D net. [no, | fixed | random]')
         self.parser.add_argument('--lambda_A', type=float, default=10.0, help='weight for cycle loss (A -> B -> A)')
         self.parser.add_argument('--lambda_B', type=float, default=10.0, help='weight for cycle loss (B -> A -> B)')
         self.parser.add_argument('--lambda_feat_AfB', type=float, default=0,

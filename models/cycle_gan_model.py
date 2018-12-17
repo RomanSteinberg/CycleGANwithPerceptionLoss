@@ -96,8 +96,11 @@ class CycleGANModel(BaseModel):
             self.fake_A_pool = ImagePool(opt.pool_size)
             self.fake_B_pool = ImagePool(opt.pool_size)
             # define loss functions
-            self.criterionGAN = networks.GANLoss(use_lsgan=not opt.no_lsgan, tensor=self.Tensor,
-                                                 smoothed=opt.smoothed_label_D)
+            target_label_real = 0.9 if opt.smoothed_label == 'fixed' else 1.0
+            target_label_fake = 0.1 if opt.smoothed_label == 'fixed' else 0.0
+            self.criterionGAN = networks.GANLoss(target_real_label=target_label_real,
+                                                 target_fake_label=target_label_fake, use_lsgan=not opt.no_lsgan,
+                                                 tensor=self.Tensor, smoothed_randomly=opt.smoothed_label == 'random')
             self.criterionCycle = torch.nn.L1Loss()
             idt_options = {'l1': torch.nn.L1Loss(), 'lab_mse': lambda x,y: lab_identity_loss(x, y, 'mse'),
                            'lab_mae': lambda x, y: lab_identity_loss(x, y, 'mae')}

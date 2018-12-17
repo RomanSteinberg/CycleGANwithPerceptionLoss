@@ -135,14 +135,14 @@ def print_network(net):
 # that has the same size as the input
 class GANLoss(nn.Module):
     def __init__(self, use_lsgan=True, target_real_label=1.0, target_fake_label=0.0,
-                 tensor=torch.FloatTensor, smoothed=False):
+                 tensor=torch.FloatTensor, smoothed_randomly=False):
         super(GANLoss, self).__init__()
         self.real_label = target_real_label
         self.fake_label = target_fake_label
         self.real_label_var = None
         self.fake_label_var = None
         self.Tensor = tensor
-        self.smoothed = smoothed
+        self.smoothed_randomly = smoothed_randomly
         if use_lsgan:
             self.loss = nn.MSELoss()
         else:
@@ -157,7 +157,7 @@ class GANLoss(nn.Module):
         if target_is_real:
             create_label = ((self.real_label_var is None) or
                             (self.real_label_var.numel() != input.numel()))
-            if self.smoothed:
+            if self.smoothed_randomly:
                 self.real_label_var = self.__generate_smoothed_label(input.size(), 0.8, 1.1)
                 real_tensor = self.Tensor(input.size()).fill_(self.real_label)
             elif create_label:
@@ -167,7 +167,7 @@ class GANLoss(nn.Module):
         else:
             create_label = ((self.fake_label_var is None) or
                             (self.fake_label_var.numel() != input.numel()))
-            if self.smoothed:
+            if self.smoothed_randomly:
                 self.fake_label_var = self.__generate_smoothed_label(input.size(), 0., 0.2)
             elif create_label:
                 fake_tensor = self.Tensor(input.size()).fill_(self.fake_label)
@@ -275,7 +275,7 @@ class ResnetBlock(nn.Module):
         p = add_padding(conv_block, padding_type)
         conv_block += [nn.Conv2d(dim, dim, kernel_size=3, padding=p),
                        norm_layer(dim),
-                       nn.ReLU(inplace=False)] # ТУТ СТРАННО!
+                       nn.ReLU(inplace=False)]
         if use_dropout:
             conv_block += [nn.Dropout(0.5)]
 

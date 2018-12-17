@@ -13,6 +13,7 @@ dataset_size = len(data_loader)
 model = create_model(opt)
 visualizer = Visualizer(opt)
 exp = Experiment("gan")
+exp.param('name', opt.name)
 
 total_steps = 0
 start_epoch = 1 if opt.which_epoch == 'latest' else int(opt.which_epoch)
