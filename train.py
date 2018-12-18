@@ -58,6 +58,7 @@ for epoch in range(start_epoch, end_epoch + 1):
     if epoch > opt.niter:
         model.update_learning_rate()
 
-    save_switch_norm_hists(model=model, epoch=epoch, opt=opt)
+    if opt.norm == 'switchable':
+        save_switch_norm_hists(model=model, epoch=epoch, opt=opt)
 
 print('End of training. Time Taken: %d sec' % (time.time() - train_start_time))
