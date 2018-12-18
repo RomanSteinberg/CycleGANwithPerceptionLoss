@@ -1,8 +1,9 @@
 import os
 import torch
+import torch.nn as nn
 
 
-class BaseModel():
+class BaseModel(nn.Module):
     def name(self):
         return 'BaseModel'
 

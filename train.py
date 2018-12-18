@@ -1,7 +1,9 @@
 import time
+
 from options.train_options import TrainOptions
 from data.data_loader import CreateDataLoader
 from models.models import create_model
+from util.util import save_switch_norm_hists
 from util.visualizer import Visualizer
 from hyperdash import Experiment
 
@@ -12,8 +14,6 @@ dataset_size = len(data_loader)
 
 model = create_model(opt)
 visualizer = Visualizer(opt)
-exp = Experiment("gan")
-exp.param('name', opt.name)
 
 total_steps = 0
 start_epoch = 1 if opt.which_epoch == 'latest' else int(opt.which_epoch)
@@ -40,8 +40,6 @@ for epoch in range(start_epoch, end_epoch + 1):
             visualizer.print_current_errors(epoch, epoch_iter, errors, t)
             if opt.display_id > 0:
                 visualizer.plot_current_errors(epoch, float(epoch_iter)/dataset_size, opt, errors)
-            for key, value in errors.items():
-                exp.metric(key, value.item())
 
         if total_steps % opt.save_latest_freq == 0:
             print('saving the latest model (epoch %d, total_steps %d)' % (epoch, total_steps))
@@ -60,5 +58,6 @@ for epoch in range(start_epoch, end_epoch + 1):
     if epoch > opt.niter:
         model.update_learning_rate()
 
+    save_switch_norm_hists(model=model, epoch=epoch, opt=opt)
+
 print('End of training. Time Taken: %d sec' % (time.time() - train_start_time))
-exp.end()

@@ -13,7 +13,9 @@ class SwitchNorm2d(nn.Module):
         self.bias = nn.Parameter(torch.zeros(1, num_features, 1, 1))
 
         self.mean_weight = nn.Parameter(torch.ones(3))
+        self.register_parameter(name='switch_norm_mean_weight', param=self.mean_weight)
         self.var_weight = nn.Parameter(torch.ones(3))
+        self.register_parameter(name='switch_norm_var_weight', param=self.var_weight)
 
         self.register_buffer('running_mean', torch.zeros(1, num_features, 1))
         self.register_buffer('running_var', torch.zeros(1, num_features, 1))
@@ -30,7 +32,7 @@ class SwitchNorm2d(nn.Module):
     def forward(self, x):
         assert x.dim() == 4, f'Expected 4D input (got {x.dim()}D tensor)'
 
-        N, C, H, W = x.shape()
+        N, C, H, W = x.size()
         x = x.view(N, C, -1)
         mean_in = x.mean(-1, keepdim=True)  # N * C elements of statistic
         var_in = x.var(-1, keepdim=True)
