@@ -1,4 +1,6 @@
 import time
+import torch
+import numpy as np
 
 from options.train_options import TrainOptions
 from data.data_loader import CreateDataLoader
@@ -8,6 +10,13 @@ from util.visualizer import Visualizer
 from hyperdash import Experiment
 
 opt = TrainOptions().parse()
+
+SEED = opt.random_seed
+np.random.seed(SEED)
+torch.manual_seed(SEED)
+torch.cuda.manual_seed(SEED)
+torch.backends.cudnn.deterministic = True
+
 data_loader = CreateDataLoader(opt)
 dataset = data_loader.load_data()
 dataset_size = len(data_loader)
