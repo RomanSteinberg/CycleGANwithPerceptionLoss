@@ -40,5 +40,6 @@ test/.coverage
 test/data/legacy_serialized.pt
 *~
 input/*
+input2/*
 
 \.idea/

@@ -289,6 +289,55 @@ class ResnetBlock(nn.Module):
         out = x + self.conv_block(x)
         return out
 
+# Define ShuffleNet unit with concatenation in the end
+class ShuffleNetBlock(nn.Module):
+
+    def __init__(self, dim, groups=3):
+        super(ShuffleNetBlock, self).__init__()
+        self.form_block(dim, groups)
+
+    def form_block(self, dim, groups):
+        depthwise_stride = 2
+        bottleneck_channels = dim // 4
+
+        self.g_conv_1x1_compress = nn.Sequential(
+            nn.Conv2d(dim, bottleneck_channels, kernel_size=1, groups=groups),
+            nn.ReLU(),
+            nn.BatchNorm2d(bottleneck_channels)
+        )
+
+        self.depthwise_conv3x3 = nn.Sequential(
+            nn.Conv2d(bottleneck_channels, bottleneck_channels, kernel_size=3, stride=depthwise_stride, groups=bottleneck_channels),
+            nn.BatchNorm2d(bottleneck_channels)
+        )
+
+        self.g_conv_1x1_expand = nn.Sequential(
+            nn.Conv2d(bottleneck_channels, dim, kernel_size=1, groups=groups),
+            nn.BatchNorm2d(dim)
+        )
+
+    def channel_shuffle(self, x, groups=3):
+        batchsize, num_channels, height, width = x.data.size()
+        channels_per_group = num_channels // groups
+
+        x = x.view(batchsize, groups,
+                   channels_per_group, height, width)
+
+        x = torch.transpose(x, 1, 2).contiguous()
+        x = x.view(batchsize, -1, height, width)
+        return x
+
+    def forward(self, x):
+        residual = F.avg_pool2d(x, kernel_size=3,
+                                stride=2, padding=1)
+
+        out = self.g_conv_1x1_compress(x)
+        out = self.channel_shuffle(out, self.groups)
+        out = self.depthwise_conv3x3(out)
+        out = self.g_conv_1x1_expand(out)
+
+        out = torch.cat((residual, out), 1)
+        return F.relu(out)
 
 # Defines the Unet generator.
 # |num_downs|: number of downsamplings in UNet. For example,
