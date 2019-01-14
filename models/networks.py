@@ -37,7 +37,7 @@ def get_norm_layer(norm_type='switchable'):
 
 
 def define_G(input_nc, output_nc, ngf, which_model_netG,
-             norm='batch', use_dropout=False, padding_type='reflect', gpu_ids=[]):
+             norm='batch', use_dropout=False, padding_type='reflect', gpu_ids=[], use_shuffle_conv=False):
     netG = None
     use_gpu = len(gpu_ids) > 0
     norm_layer = get_norm_layer(norm_type=norm)
@@ -46,7 +46,7 @@ def define_G(input_nc, output_nc, ngf, which_model_netG,
         assert(torch.cuda.is_available())
 
     resnet_G = lambda n: ResnetGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout,
-                                         padding_type=padding_type, n_blocks=n, gpu_ids=gpu_ids)
+                                         padding_type=padding_type, n_blocks=n, gpu_ids=gpu_ids, use_shuffle_conv=use_shuffle_conv)
     unet_G = lambda n: UnetGenerator(input_nc, output_nc, n, ngf, norm_layer=norm_layer, use_dropout=use_dropout,
                                      gpu_ids=gpu_ids)
     if which_model_netG == 'resnet_12blocks':
@@ -183,7 +183,7 @@ class GANLoss(nn.Module):
 class ResnetGeneratorHelper(nn.Module):
     def __init__(self, input_nc, output_nc,
                  ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False, padding_type='reflect',
-                 skip_gen_connection=False, n_blocks=6):
+                 skip_gen_connection=False, n_blocks=6, use_shuffle_conv=False):
         assert (n_blocks >= 0)
         super(ResnetGeneratorHelper, self).__init__()
         self.skip_gen_connection = skip_gen_connection
@@ -208,7 +208,10 @@ class ResnetGeneratorHelper(nn.Module):
 
         num_inp = ngf * 2**n_downsampling
         for i in range(n_blocks):
-            model += [ResnetBlock(num_inp, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout)]
+            if use_shuffle_conv:
+                model += [ShuffleNetBlock(num_inp)]
+            else:
+                model += [ResnetBlock(num_inp, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout)]
 
         for i in range(n_downsampling):
             mult = 2**(n_downsampling - i)
@@ -234,13 +237,13 @@ class ResnetGeneratorHelper(nn.Module):
 class ResnetGenerator(nn.Module):
     def __init__(self, input_nc, output_nc, ngf=64,
                  norm_layer=nn.BatchNorm2d, use_dropout=False, padding_type='reflect', skip_gen_connection=False,
-                 n_blocks=6, gpu_ids=[]):
+                 n_blocks=6, gpu_ids=[], use_shuffle_conv=False):
         assert(n_blocks >= 0)
         super(ResnetGenerator, self).__init__()
         self.gpu_ids = gpu_ids
 
-        model = [ResnetGeneratorHelper(input_nc, output_nc,
-                                       ngf, norm_layer, use_dropout, padding_type, skip_gen_connection, n_blocks)]
+        model = [ResnetGeneratorHelper(input_nc, output_nc, ngf, norm_layer,
+                                       use_dropout, padding_type, skip_gen_connection, n_blocks, use_shuffle_conv)]
         model += [nn.Tanh()]
         self.model = nn.Sequential(*model)
 

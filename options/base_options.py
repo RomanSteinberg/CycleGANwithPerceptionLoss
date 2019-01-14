@@ -47,6 +47,8 @@ class BaseOptions():
         self.parser.add_argument('--no_flip', action='store_true', help='if specified, do not flip the images for data augmentation')
         self.parser.add_argument('--verbosity', type=int, default=1, help='verbosity level')
         self.parser.add_argument('--random_seed', type=int, default=42, help='random seed for reproducible weights initialization')
+        self.parser.add_argument('--use_shuffle_conv', type=bool, default=False,
+                                 help='use ShuffleNet units in resnet')
 
         self.initialized = True
 
