@@ -2,7 +2,7 @@
 
 python3 train.py \
  --name 7 \
- --dataroot ./input \
+ --dataroot ./input2 \
  --model cycle_gan \
  --no_dropout \
  --padding_type "zero" \
@@ -19,5 +19,5 @@ python3 train.py \
  --print_freq 500 \
  --display_freq 1000 \
  --norm "switchable" \
- --data_description "1843\ segmented\ and\ scaled\ photos\ and\ not\ augmented\ avatars\ 256x256"
-
+ --data_description "1843\ segmented\ and\ scaled\ photos\ and\ not\ augmented\ avatars\ 256x256" \
+ --use_shuffle_conv true
