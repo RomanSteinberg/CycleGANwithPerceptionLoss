@@ -37,7 +37,7 @@ def get_norm_layer(norm_type='switchable'):
 
 
 def define_G(input_nc, output_nc, ngf, which_model_netG,
-             norm='batch', use_dropout=False, padding_type='reflect', gpu_ids=[], use_shuffle_conv=False):
+             norm='batch', use_dropout=False, padding_type='reflect', gpu_ids=[], use_shuffle_conv=False, group_size=4):
     netG = None
     use_gpu = len(gpu_ids) > 0
     norm_layer = get_norm_layer(norm_type=norm)
@@ -45,7 +45,8 @@ def define_G(input_nc, output_nc, ngf, which_model_netG,
     if use_gpu:
         assert(torch.cuda.is_available())
     resnet_G = lambda n: ResnetGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout,
-                                         padding_type=padding_type, n_blocks=n, gpu_ids=gpu_ids, use_shuffle_conv=use_shuffle_conv)
+                                         padding_type=padding_type, n_blocks=n, gpu_ids=gpu_ids, use_shuffle_conv=use_shuffle_conv,
+                                         group_size=group_size)
     unet_G = lambda n: UnetGenerator(input_nc, output_nc, n, ngf, norm_layer=norm_layer, use_dropout=use_dropout,
                                      gpu_ids=gpu_ids)
     if which_model_netG == 'resnet_12blocks':
@@ -182,7 +183,7 @@ class GANLoss(nn.Module):
 class ResnetGeneratorHelper(nn.Module):
     def __init__(self, input_nc, output_nc,
                  ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False, padding_type='reflect',
-                 skip_gen_connection=False, n_blocks=6, use_shuffle_conv=False):
+                 skip_gen_connection=False, n_blocks=6, use_shuffle_conv=False, group_size=4):
         assert (n_blocks >= 0)
         super(ResnetGeneratorHelper, self).__init__()
         self.skip_gen_connection = skip_gen_connection
@@ -207,7 +208,7 @@ class ResnetGeneratorHelper(nn.Module):
         num_inp = ngf * 2**n_downsampling
         for i in range(n_blocks):
             if use_shuffle_conv:
-                model += [ShuffleNetBlock(num_inp)]
+                model += [ShuffleNetBlock(num_inp, norm_layer, groups=group_size)]
             else:
                 model += [ResnetBlock(num_inp, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout)]
 
@@ -235,13 +236,13 @@ class ResnetGeneratorHelper(nn.Module):
 class ResnetGenerator(nn.Module):
     def __init__(self, input_nc, output_nc, ngf=64,
                  norm_layer=nn.BatchNorm2d, use_dropout=False, padding_type='reflect', skip_gen_connection=False,
-                 n_blocks=6, gpu_ids=[], use_shuffle_conv=False):
+                 n_blocks=6, gpu_ids=[], use_shuffle_conv=False, group_size=4):
         assert(n_blocks >= 0)
         super(ResnetGenerator, self).__init__()
         self.gpu_ids = gpu_ids
 
         model = [ResnetGeneratorHelper(input_nc, output_nc, ngf, norm_layer,
-                                       use_dropout, padding_type, skip_gen_connection, n_blocks, use_shuffle_conv)]
+                                       use_dropout, padding_type, skip_gen_connection, n_blocks, use_shuffle_conv, group_size)]
         model += [nn.Tanh()]
         self.model = nn.Sequential(*model)
 
@@ -290,32 +291,32 @@ class ResnetBlock(nn.Module):
         out = x + self.conv_block(x)
         return out
 
-# Define ShuffleNet unit with concatenation in the end
+
+# Define ShuffleNet unit
 class ShuffleNetBlock(nn.Module):
 
-    def __init__(self, dim, groups=3):
+    def __init__(self, dim, norm_layer, groups=3):
         super(ShuffleNetBlock, self).__init__()
-        self.form_block(dim, groups)
-        self.groups = 3
+        self.groups = groups
+        self.form_block(dim, norm_layer)
 
-    def form_block(self, dim):
-        depthwise_stride = 2
+    def form_block(self, dim, norm_layer):
         bottleneck_channels = dim // 4
 
         self.g_conv_1x1_compress = nn.Sequential(
             nn.Conv2d(dim, bottleneck_channels, kernel_size=1, groups=self.groups),
             nn.ReLU(),
-            nn.BatchNorm2d(bottleneck_channels)
+            norm_layer(bottleneck_channels)
         )
 
         self.depthwise_conv3x3 = nn.Sequential(
-            nn.Conv2d(bottleneck_channels, bottleneck_channels, kernel_size=3, stride=depthwise_stride, groups=bottleneck_channels),
-            nn.BatchNorm2d(bottleneck_channels)
+            nn.Conv2d(bottleneck_channels, bottleneck_channels, kernel_size=3, groups=bottleneck_channels, padding=1),
+            norm_layer(bottleneck_channels)
         )
 
         self.g_conv_1x1_expand = nn.Sequential(
             nn.Conv2d(bottleneck_channels, dim, kernel_size=1, groups=self.groups),
-            nn.BatchNorm2d(dim)
+            norm_layer(dim)
         )
 
     def channel_shuffle(self, x):
@@ -330,16 +331,16 @@ class ShuffleNetBlock(nn.Module):
         return x
 
     def forward(self, x):
-        residual = F.avg_pool2d(x, kernel_size=3,
-                                stride=2, padding=1)
-
+        # residual = F.avg_pool2d(x, kernel_size=3,
+        #                         stride=2, padding=1)
         out = self.g_conv_1x1_compress(x)
-        out = self.channel_shuffle(out, self.groups)
+        out = self.channel_shuffle(out)
         out = self.depthwise_conv3x3(out)
         out = self.g_conv_1x1_expand(out)
+        # print('residual_size = ', residual.size())
 
-        out = torch.cat((residual, out), 1)
-        return F.relu(out)
+        # out = torch.cat((residual, out), 1)
+        return F.relu(out + x)
 
 # Defines the Unet generator.
 # |num_downs|: number of downsamplings in UNet. For example,
