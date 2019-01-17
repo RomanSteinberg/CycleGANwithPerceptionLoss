@@ -49,6 +49,8 @@ class BaseOptions():
         self.parser.add_argument('--random_seed', type=int, default=42, help='random seed for reproducible weights initialization')
         self.parser.add_argument('--use_shuffle_conv', type=bool, default=False,
                                  help='use ShuffleNet units in resnet')
+        self.parser.add_argument('--group_size', type=int, default=4,
+                                 help='number of groups for shuffle conv')
 
         self.initialized = True
 

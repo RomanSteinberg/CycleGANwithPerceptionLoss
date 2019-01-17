@@ -1,6 +1,7 @@
 import time
 import torch
 import numpy as np
+import os
 
 from options.train_options import TrainOptions
 from data.data_loader import CreateDataLoader
@@ -8,6 +9,7 @@ from models.models import create_model
 from util.util import save_switch_norm_hists
 from util.visualizer import Visualizer
 from hyperdash import Experiment
+from tensorboardX import SummaryWriter
 
 opt = TrainOptions().parse()
 
@@ -21,8 +23,11 @@ data_loader = CreateDataLoader(opt)
 dataset = data_loader.load_data()
 dataset_size = len(data_loader)
 
+tensorboard_path = os.path.join(opt.checkpoints_dir, opt.name)
+writer = SummaryWriter(tensorboard_path)
 model = create_model(opt)
 visualizer = Visualizer(opt)
+writer.add_graph(model.netG_A, model.input_A)
 
 total_steps = 0
 start_epoch = 1 if opt.which_epoch == 'latest' else int(opt.which_epoch)
@@ -46,7 +51,7 @@ for epoch in range(start_epoch, end_epoch + 1):
         if total_steps % opt.print_freq == 0:
             errors = model.get_current_errors()
             t = (time.time() - iter_start_time) / opt.batchSize
-            visualizer.print_current_errors(epoch, epoch_iter, errors, t)
+            visualizer.print_current_errors(epoch, epoch_iter, errors, t, dataset_size)
             if opt.display_id > 0:
                 visualizer.plot_current_errors(epoch, float(epoch_iter)/dataset_size, opt, errors)
 

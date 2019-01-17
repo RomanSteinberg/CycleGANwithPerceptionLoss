@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import time
+import csv
 from . import util
 from . import html
 
@@ -25,6 +26,13 @@ class Visualizer():
         with open(self.log_name, "a") as log_file:
             now = time.strftime("%c")
             log_file.write('================ Training Loss (%s) ================\n' % now)
+
+        self.log_file_csv = os.path.join(opt.checkpoints_dir, opt.name, 'loss_log.csv')
+        with open(self.log_file_csv, "w") as csv_log:
+            writer = csv.writer(csv_log, delimiter=',')
+            loss_arr = ['D_A', 'G_A', 'Cyc_A', 'idt_A', 'D_B', 'G_B', 'Cyc_B', 'idt_B', 'epoch']
+            writer.writerow(loss_arr)
+
 
     # |visuals|: dictionary of images to display or save
     def display_current_results(self, visuals, epoch):
@@ -107,11 +115,17 @@ class Visualizer():
             win=self.display_id)
 
     # errors: same format as |errors| of plotCurrentErrors
-    def print_current_errors(self, epoch, i, errors, t):
+    def print_current_errors(self, epoch, i, errors, t, count_iterations):
         message = '(epoch: %d, iters: %d, time: %.3f) ' % (epoch, i, t)
         print(message)
         for k, v in errors.items():
             message += '%s: %.3f ' % (k, v)
+
+        with open(self.log_file_csv, "a") as csv_log:
+            writer = csv.writer(csv_log, delimiter=',')
+            values_to_log = [float(item[1]) for item in errors.items()]
+            values_to_log.append(epoch - 1 + i/count_iterations)
+            writer.writerow(values_to_log)
 
         #print(message)
         with open(self.log_name, "a") as log_file:

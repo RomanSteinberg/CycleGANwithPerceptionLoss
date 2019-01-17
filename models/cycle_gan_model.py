@@ -67,10 +67,12 @@ class CycleGANModel(BaseModel):
 
         self.netG_A = networks.define_G(opt.input_nc, opt.output_nc, opt.ngf, opt.which_model_netG,
                                         norm=opt.norm, use_dropout=not opt.no_dropout,
-                                        padding_type=opt.padding_type, gpu_ids=self.gpu_ids)
+                                        padding_type=opt.padding_type, gpu_ids=self.gpu_ids,
+                                        use_shuffle_conv=opt.use_shuffle_conv)
         self.netG_B = networks.define_G(opt.output_nc, opt.input_nc, opt.ngf, opt.which_model_netG,
                                         norm=opt.norm, use_dropout=not opt.no_dropout,
-                                        padding_type=opt.padding_type, gpu_ids=self.gpu_ids)
+                                        padding_type=opt.padding_type, gpu_ids=self.gpu_ids,
+                                        use_shuffle_conv=opt.use_shuffle_conv)
 
         if self.isTrain:
             use_sigmoid = opt.no_lsgan

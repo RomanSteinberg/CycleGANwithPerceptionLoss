@@ -44,7 +44,6 @@ def define_G(input_nc, output_nc, ngf, which_model_netG,
 
     if use_gpu:
         assert(torch.cuda.is_available())
-
     resnet_G = lambda n: ResnetGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout,
                                          padding_type=padding_type, n_blocks=n, gpu_ids=gpu_ids, use_shuffle_conv=use_shuffle_conv)
     unet_G = lambda n: UnetGenerator(input_nc, output_nc, n, ngf, norm_layer=norm_layer, use_dropout=use_dropout,
@@ -205,7 +204,6 @@ class ResnetGeneratorHelper(nn.Module):
                                 stride=2, padding=1),
                       norm_layer(num_inp * 2),
                       nn.ReLU(True)]
-
         num_inp = ngf * 2**n_downsampling
         for i in range(n_blocks):
             if use_shuffle_conv:
@@ -298,13 +296,14 @@ class ShuffleNetBlock(nn.Module):
     def __init__(self, dim, groups=3):
         super(ShuffleNetBlock, self).__init__()
         self.form_block(dim, groups)
+        self.groups = 3
 
-    def form_block(self, dim, groups):
+    def form_block(self, dim):
         depthwise_stride = 2
         bottleneck_channels = dim // 4
 
         self.g_conv_1x1_compress = nn.Sequential(
-            nn.Conv2d(dim, bottleneck_channels, kernel_size=1, groups=groups),
+            nn.Conv2d(dim, bottleneck_channels, kernel_size=1, groups=self.groups),
             nn.ReLU(),
             nn.BatchNorm2d(bottleneck_channels)
         )
@@ -315,15 +314,15 @@ class ShuffleNetBlock(nn.Module):
         )
 
         self.g_conv_1x1_expand = nn.Sequential(
-            nn.Conv2d(bottleneck_channels, dim, kernel_size=1, groups=groups),
+            nn.Conv2d(bottleneck_channels, dim, kernel_size=1, groups=self.groups),
             nn.BatchNorm2d(dim)
         )
 
-    def channel_shuffle(self, x, groups=3):
+    def channel_shuffle(self, x):
         batchsize, num_channels, height, width = x.data.size()
-        channels_per_group = num_channels // groups
+        channels_per_group = num_channels // self.groups
 
-        x = x.view(batchsize, groups,
+        x = x.view(batchsize, self.groups,
                    channels_per_group, height, width)
 
         x = torch.transpose(x, 1, 2).contiguous()
