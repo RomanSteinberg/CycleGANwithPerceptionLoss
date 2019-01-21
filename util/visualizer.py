@@ -1,12 +1,13 @@
 import numpy as np
 import os
+
 import time
 import csv
 from . import util
 from . import html
 
 class Visualizer():
-    def __init__(self, opt):
+    def __init__(self, opt, loss_arr):
         # self.opt = opt
         self.display_id = opt.display_id
         self.use_html = opt.isTrain and not opt.no_html
@@ -30,7 +31,7 @@ class Visualizer():
         self.log_file_csv = os.path.join(opt.checkpoints_dir, opt.name, 'loss_log.csv')
         with open(self.log_file_csv, "w") as csv_log:
             writer = csv.writer(csv_log, delimiter=',')
-            loss_arr = ['D_A', 'G_A', 'Cyc_A', 'idt_A', 'D_B', 'G_B', 'Cyc_B', 'idt_B', 'epoch']
+            loss_arr.append('epochs')
             writer.writerow(loss_arr)
 
 
