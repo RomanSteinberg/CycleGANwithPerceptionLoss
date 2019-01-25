@@ -7,7 +7,7 @@ from . import util
 from . import html
 
 class Visualizer():
-    def __init__(self, opt, loss_arr):
+    def __init__(self, opt):
         # self.opt = opt
         self.display_id = opt.display_id
         self.use_html = opt.isTrain and not opt.no_html
@@ -27,13 +27,6 @@ class Visualizer():
         with open(self.log_name, "a") as log_file:
             now = time.strftime("%c")
             log_file.write('================ Training Loss (%s) ================\n' % now)
-
-        self.log_file_csv = os.path.join(opt.checkpoints_dir, opt.name, 'loss_log.csv')
-        with open(self.log_file_csv, "w") as csv_log:
-            writer = csv.writer(csv_log, delimiter=',')
-            loss_arr.append('epochs')
-            writer.writerow(loss_arr)
-
 
     # |visuals|: dictionary of images to display or save
     def display_current_results(self, visuals, epoch):
@@ -121,12 +114,6 @@ class Visualizer():
         print(message)
         for k, v in errors.items():
             message += '%s: %.3f ' % (k, v)
-
-        with open(self.log_file_csv, "a") as csv_log:
-            writer = csv.writer(csv_log, delimiter=',')
-            values_to_log = [float(item[1]) for item in errors.items()]
-            values_to_log.append(epoch - 1 + i/count_iterations)
-            writer.writerow(values_to_log)
 
         #print(message)
         with open(self.log_name, "a") as log_file:

@@ -22,10 +22,9 @@ data_loader = CreateDataLoader(opt)
 dataset = data_loader.load_data()
 dataset_size = len(data_loader)
 
-loss_arr = ['D_A', 'G_A', 'Cyc_A', 'idt_A', 'D_B', 'G_B', 'Cyc_B', 'idt_B']
-tb_logger = TBLogger(opt, loss_arr, 'netG_A', 'netG_B', 'netD_A', 'netD_B')
+tb_logger = TBLogger(opt, 'netG_A', 'netG_B', 'netD_A', 'netD_B')
 model = create_model(opt)
-visualizer = Visualizer(opt, loss_arr)
+visualizer = Visualizer(opt)
 tb_logger.log_graph(model, 'netG_A', model.input_A)
 tb_logger.log_graph(model, 'netG_B', model.input_B)
 tb_logger.log_graph(model, 'netD_A', model.input_A)
