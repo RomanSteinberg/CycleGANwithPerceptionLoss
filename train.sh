@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 python3 train.py \
- --name 1 \
+ --name 2 \
+ --random_seed 42 \
  --dataroot ./input2 \
  --model cycle_gan \
  --no_dropout \
@@ -10,7 +11,6 @@ python3 train.py \
  --lambda_A 15.0 \
  --lambda_feat_AfB 0.3 \
  --identity 0.1 \
- --skip_gen_connection \
  --batchSize 1 \
  --no_flip \
  --resize_or_crop 'resize_and_crop' \
@@ -20,4 +20,4 @@ python3 train.py \
  --display_freq 1000 \
  --norm "instance" \
  --data_description "1843\ segmented\ and\ scaled\ photos\ and\ not\ augmented\ avatars\ 256x256" \
- --use_shuffle_conv true
+ --use_tensorboardX true
