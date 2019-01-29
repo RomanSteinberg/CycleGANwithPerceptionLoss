@@ -22,13 +22,15 @@ data_loader = CreateDataLoader(opt)
 dataset = data_loader.load_data()
 dataset_size = len(data_loader)
 
-tb_logger = TBLogger(opt, 'netG_A', 'netG_B', 'netD_A', 'netD_B')
 model = create_model(opt)
 visualizer = Visualizer(opt)
-tb_logger.log_graph(model, 'netG_A', model.input_A)
-tb_logger.log_graph(model, 'netG_B', model.input_B)
-tb_logger.log_graph(model, 'netD_A', model.input_A)
-tb_logger.log_graph(model, 'netD_B', model.input_B)
+net_list = ['netG_A', 'netG_B', 'netD_A', 'netD_B']
+if opt.use_tensorboardX:
+    tb_logger = TBLogger(opt, *net_list)
+    tb_logger.log_graph(model, 'netG_A', model.input_A)
+    tb_logger.log_graph(model, 'netG_B', model.input_B)
+    tb_logger.log_graph(model, 'netD_A', model.input_A)
+    tb_logger.log_graph(model, 'netD_B', model.input_B)
 
 total_steps = 0
 start_epoch = 1 if opt.which_epoch == 'latest' else int(opt.which_epoch)
@@ -45,10 +47,7 @@ for epoch in range(start_epoch, end_epoch + 1):
         model.set_input(data)
         model.optimize_parameters()
 
-        tb_logger.log_gradients(model, 'netG_A', i)
-        tb_logger.log_gradients(model, 'netG_B', i)
-        tb_logger.log_gradients(model, 'netD_A', i)
-        tb_logger.log_gradients(model, 'netD_B', i)
+
 
         if total_steps % opt.display_freq == 0:
             # turned off due to opt.display_id==0
@@ -59,17 +58,19 @@ for epoch in range(start_epoch, end_epoch + 1):
             t = (time.time() - iter_start_time) / opt.batchSize
             visualizer.print_current_errors(epoch, epoch_iter, errors, t, dataset_size)
 
-            tb_logger.log_loss(model, 'netG_A', i)
-            tb_logger.log_loss(model, 'netG_B', i)
-            tb_logger.log_loss(model, 'netD_A', i)
-            tb_logger.log_loss(model, 'netD_B', i)
-
             if opt.display_id > 0:
                 visualizer.plot_current_errors(epoch, float(epoch_iter)/dataset_size, opt, errors)
 
         if total_steps % opt.save_latest_freq == 0:
             print('saving the latest model (epoch %d, total_steps %d)' % (epoch, total_steps))
             model.save('latest')
+
+    if opt.use_tensorboardX:
+        for net_name in net_list:
+            tb_logger.log_gradients(model, net_name, epoch)
+            tb_logger.log_loss(model, net_name, epoch)
+            tb_logger.log_weights_spectrum(model, net_name, epoch)
+        print('logged in tensorboardX')
 
     if epoch % opt.save_epoch_freq == 0:
         print('saving the model at the end of epoch %d, iters %d' %

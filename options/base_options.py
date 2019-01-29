@@ -51,6 +51,7 @@ class BaseOptions():
                                  help='use ShuffleNet units in resnet')
         self.parser.add_argument('--group_size', type=int, default=4,
                                  help='number of groups for shuffle conv')
+        self.parser.add_argument('--use_tensorboardX', type=bool, default=False, help='use tensorboardX for logging')
 
         self.initialized = True
 
